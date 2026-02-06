@@ -17,13 +17,13 @@ export type SystemHealthStatus = 'healthy' | 'degraded' | 'offline';
 // ============================================================================
 
 /**
- * Template represents a PDF certificate template
- * PDFs are stored in Supabase Storage, not in the database
+ * Template represents a certificate template
+ * Images are stored in Supabase Storage, not in the database
  */
 export interface Template {
   id: string; // UUID
   owner_id: string; // UUID - Foreign key to auth.users
-  pdf_url: string; // URL to PDF in Supabase Storage
+  image_url: string; // URL to certificate image (JPG/PNG) in Supabase Storage
   name: string; // User-defined name
   created_at: string; // ISO 8601 timestamp
 }
@@ -34,7 +34,7 @@ export interface Template {
  */
 export interface TemplateInsert {
   owner_id: string;
-  pdf_url: string;
+  image_url: string;
   name: string;
 }
 
@@ -43,7 +43,7 @@ export interface TemplateInsert {
  * All fields are optional except what's being updated
  */
 export interface TemplateUpdate {
-  pdf_url?: string;
+  image_url?: string;
   name?: string;
 }
 
@@ -70,8 +70,20 @@ export interface LayoutField {
   bold?: boolean; // Font weight
   italic?: boolean; // Font style
   align?: 'left' | 'center' | 'right'; // Text alignment
+  rotation?: number; // Rotation angle in degrees (0-359)
   width?: number; // Field width (for wrapping)
   height?: number; // Field height (for multi-line)
+  source?: 'data' | 'static'; // Origin: 'data' = imported from CSV/Excel, 'static' = manually added
+}
+
+/**
+ * Parsed data source persisted alongside the layout.
+ * Stores the imported CSV/XLSX file contents so users don't have to re-upload.
+ */
+export interface DataSource {
+  fileName: string;
+  headers: string[];
+  rows: string[][];
 }
 
 /**
@@ -82,6 +94,7 @@ export interface Layout {
   id: string; // UUID
   template_id: string; // UUID - Foreign key to templates
   config: LayoutField[]; // Array of field configurations (stored as JSONB)
+  data_source?: DataSource | null; // Persisted imported data file (JSONB)
   created_at: string; // ISO 8601 timestamp
   updated_at: string; // ISO 8601 timestamp (auto-updated)
 }
@@ -93,6 +106,7 @@ export interface Layout {
 export interface LayoutInsert {
   template_id: string;
   config: LayoutField[];
+  data_source?: DataSource | null;
 }
 
 /**
@@ -101,6 +115,7 @@ export interface LayoutInsert {
  */
 export interface LayoutUpdate {
   config?: LayoutField[];
+  data_source?: DataSource | null;
 }
 
 // ============================================================================
@@ -136,25 +151,50 @@ export interface SystemHealthUpdate {
 /**
  * Complete database schema
  * Use this type for type-safe Supabase client
+ * 
+ * This follows the Supabase generated types format for proper type inference.
  */
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       templates: {
         Row: Template;
         Insert: TemplateInsert;
         Update: TemplateUpdate;
+        Relationships: [];
       };
       layouts: {
         Row: Layout;
         Insert: LayoutInsert;
         Update: LayoutUpdate;
+        Relationships: [
+          {
+            foreignKeyName: 'layouts_template_id_fkey';
+            columns: ['template_id'];
+            isOneToOne: false;
+            referencedRelation: 'templates';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       system_health: {
         Row: SystemHealth;
         Insert: Omit<SystemHealth, 'id' | 'created_at'>;
         Update: SystemHealthUpdate;
+        Relationships: [];
       };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      system_health_status: SystemHealthStatus;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
     };
   };
 }

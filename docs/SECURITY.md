@@ -245,7 +245,7 @@ const { data } = await supabase
   .insert({
     owner_id: userId, // ❌ Don't trust client input
     name: 'My Template',
-    pdf_url: 'https://...'
+    image_url: 'https://...'
   });
 ```
 

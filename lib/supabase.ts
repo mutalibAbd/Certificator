@@ -14,49 +14,7 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { createServerClient } from '@supabase/ssr';
 import type { Database } from '@/types/database.types';
-
-/**
- * Get Supabase URL from environment
- * Throws error if not configured
- */
-function getSupabaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) {
-    throw new Error(
-      'NEXT_PUBLIC_SUPABASE_URL is not defined. Check your .env.local file.'
-    );
-  }
-  return url;
-}
-
-/**
- * Get Supabase Anon Key from environment
- * Throws error if not configured
- */
-function getSupabaseAnonKey(): string {
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!key) {
-    throw new Error(
-      'NEXT_PUBLIC_SUPABASE_ANON_KEY is not defined. Check your .env.local file.'
-    );
-  }
-  return key;
-}
-
-/**
- * Get Supabase Service Role Key from environment
- * Only use server-side for admin operations
- * WARNING: This key bypasses RLS. Use with extreme caution.
- */
-function getSupabaseServiceRoleKey(): string {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!key) {
-    throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY is not defined. Check your .env.local file.'
-    );
-  }
-  return key;
-}
+import { getSupabaseUrl, getSupabaseAnonKey, getServiceRoleKey } from '@/lib/env';
 
 // ============================================================================
 // BROWSER CLIENT (Client Components)
@@ -179,6 +137,6 @@ export async function createServerSupabaseClient() {
 export function createAdminClient() {
   return createBrowserClient<Database>(
     getSupabaseUrl(),
-    getSupabaseServiceRoleKey()
+    getServiceRoleKey()
   );
 }

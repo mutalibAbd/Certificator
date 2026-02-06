@@ -1,5 +1,17 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+/**
+ * Inter font for UI elements
+ * Self-hosted via next/font for optimal performance and bandwidth efficiency
+ * Loaded with subset for common Latin characters
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "Certificator - Zero-Cost Certificate Generation",
@@ -12,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body className="antialiased">
         {children}
       </body>

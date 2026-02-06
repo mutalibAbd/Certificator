@@ -108,6 +108,13 @@ jspm_packages/
 .cache
 .parcel-cache
 
+# TypeScript build info
+*.tsbuildinfo
+
+# Claude temp files
+tmpclaude-*
+nul
+
 # next.js build output
 .next
 

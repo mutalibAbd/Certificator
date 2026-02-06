@@ -90,7 +90,7 @@ Stores PDF template metadata (PDFs stored in Supabase Storage).
 |-------------|--------------|--------------------------------------|
 | id          | UUID         | Primary key                          |
 | owner_id    | UUID         | Foreign key to auth.users            |
-| pdf_url     | TEXT         | URL to PDF in Supabase Storage       |
+| image_url   | TEXT         | URL to image in Supabase Storage     |
 | name        | TEXT         | User-defined template name           |
 | created_at  | TIMESTAMPTZ  | Creation timestamp                   |
 

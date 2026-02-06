@@ -1,0 +1,125 @@
+# ==============================================================================
+# Keep-Alive Workflow for Supabase Database
+# ==============================================================================
+#
+# PURPOSE:
+# Supabase pauses free-tier projects after 7 days of inactivity (no API calls).
+# This workflow prevents pausing by executing a database write every 48 hours.
+#
+# HOW IT WORKS:
+# 1. GitHub Actions triggers this workflow on the cron schedule
+# 2. A curl request hits the /api/system/pulse endpoint on production
+# 3. The API route performs an UPDATE on system_health table
+# 4. The write operation forces a WAL commit, guaranteeing database activity
+#
+# SECURITY:
+# - CRON_SECRET is stored as a GitHub repository secret
+# - The API endpoint verifies the secret before executing the write
+# - Failed attempts are logged for monitoring
+#
+# CONFIGURATION REQUIRED:
+# 1. Set CRON_SECRET in GitHub repository secrets
+# 2. Set VERCEL_PRODUCTION_URL in GitHub repository secrets
+#    (e.g., https://your-project.vercel.app)
+#
+# MONITORING:
+# - Check GitHub Actions tab for workflow run status
+# - Check Vercel logs for API endpoint activity
+# - Check Supabase dashboard for last_pulse timestamps
+#
+# ==============================================================================
+
+name: Keep-Alive Pulse
+
+on:
+  # Scheduled trigger: Every 48 hours
+  # Format: minute hour day-of-month month day-of-week
+  # "0 0 */2 * *" = At 00:00 on every 2nd day
+  # This provides a safe buffer against the 7-day pause window
+  schedule:
+    - cron: '0 0 */2 * *'
+
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger'
+        required: false
+        default: 'Manual health check'
+
+# Limit concurrent runs to prevent duplicate pulses
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+jobs:
+  pulse:
+    name: Send Keep-Alive Pulse
+    runs-on: ubuntu-latest
+    
+    # Timeout after 2 minutes (should complete in seconds)
+    timeout-minutes: 2
+
+    steps:
+      # ========================================================================
+      # Step 1: Send Keep-Alive Request
+      # ========================================================================
+      - name: Send pulse to production API
+        id: pulse
+        env:
+          VERCEL_URL: ${{ secrets.VERCEL_PRODUCTION_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          echo "🏥 Sending keep-alive pulse..."
+          echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          
+          # Validate environment variables
+          if [ -z "$VERCEL_URL" ]; then
+            echo "❌ Error: VERCEL_PRODUCTION_URL secret is not set"
+            exit 1
+          fi
+          
+          if [ -z "$CRON_SECRET" ]; then
+            echo "❌ Error: CRON_SECRET secret is not set"
+            exit 1
+          fi
+          
+          # Send POST request with CRON_SECRET header
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: $CRON_SECRET" \
+            "${VERCEL_URL}/api/system/pulse")
+          
+          # Extract HTTP status code (last line)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          # Extract response body (all but last line)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+          
+          # Check if request was successful
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Keep-alive pulse successful!"
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Keep-alive pulse failed with status $HTTP_CODE"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      # ========================================================================
+      # Step 2: Log Result Summary
+      # ========================================================================
+      - name: Log summary
+        if: always()
+        run: |
+          echo "## Keep-Alive Pulse Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.pulse.outputs.status || 'unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "- **Reason**: ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+          fi
