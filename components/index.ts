@@ -38,3 +38,36 @@ export {
   ToastContext,
   type ToastType,
 } from './ToastProvider';
+
+// Modular components extracted in Phase 2
+export { EditorToolbar, type EditorToolbarProps } from './EditorToolbar';
+export { ColumnPickerModal, type ColumnPickerModalProps } from './ColumnPickerModal';
+
+// Batch step components
+export {
+  BatchStepInput,
+  BatchStepConfirm,
+  BatchStepGenerate,
+  BatchStepComplete,
+  CHUNK_SIZE,
+  PREVIEW_ROW_COUNT,
+  type ColumnMapping,
+  type BatchStep,
+  type ChunkResult,
+  type BatchProgress,
+  type BatchStepBaseProps,
+  type BatchStepInputProps,
+  type BatchStepConfirmProps,
+  type BatchStepGenerateProps,
+  type BatchStepCompleteProps,
+} from './batch';
+
+// UX components
+export { ErrorBoundary } from './ErrorBoundary';
+export {
+  LoadingSpinner,
+  LoadingOverlay,
+  Skeleton,
+  SkeletonCard,
+} from './LoadingStates';
+

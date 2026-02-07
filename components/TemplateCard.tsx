@@ -3,6 +3,7 @@
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { deleteTemplate } from '@/lib/actions/templates'
 import { useToast } from '@/hooks/useToast'
 import type { Template } from '@/types/database.types'
@@ -55,16 +56,17 @@ export default function TemplateCard({ template, signedImageUrl }: TemplateCardP
       {/* Thumbnail */}
       <div className="relative h-32 bg-slate-100 overflow-hidden">
         {signedImageUrl ? (
-          <img
+          <Image
             src={signedImageUrl}
             alt={`${template.name} preview`}
-            className="w-full h-full object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover"
             draggable={false}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-slate-400">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
           </div>
         )}
       </div>

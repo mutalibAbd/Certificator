@@ -168,10 +168,10 @@ export async function generateCertificateFromLayout(
         pageSize,
         debug: options?.debug
           ? {
-              enabled: true,
-              showBoundingBoxes: true,
-              showPositionMarkers: true,
-            }
+            enabled: true,
+            showBoundingBoxes: true,
+            showPositionMarkers: true,
+          }
           : undefined,
       },
       'base64',

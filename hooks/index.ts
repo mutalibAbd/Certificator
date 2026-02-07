@@ -24,3 +24,6 @@ export {
 } from './useSnapGuides';
 
 export { useToast } from './useToast';
+
+export { useKeyboardShortcuts, SHORTCUT_KEYS } from './useKeyboardShortcuts';
+

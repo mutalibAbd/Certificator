@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import Image from 'next/image';
 
 /**
  * Props for ImagePreview component
@@ -36,11 +37,14 @@ export function ImagePreview({
       className="relative w-full overflow-hidden rounded-lg bg-white shadow"
       style={{ aspectRatio }}
     >
-      <img
+      <Image
         src={imageUrl}
         alt="Certificate template"
+        fill
+        sizes="(max-width: 768px) 100vw, 75vw"
+        className="object-cover"
         draggable={false}
-        className="absolute inset-0 w-full h-full object-cover"
+        priority
       />
       <div className="absolute inset-0 z-canvas">
         {children}
@@ -48,3 +52,4 @@ export function ImagePreview({
     </div>
   );
 }
+

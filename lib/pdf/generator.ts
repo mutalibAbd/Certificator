@@ -230,7 +230,7 @@ export function percentageToPoints(
   // Validate percentage range (clamp to 0-1)
   const xPct = Math.max(0, Math.min(1, coord.xPct));
   const yPct = Math.max(0, Math.min(1, coord.yPct));
-  
+
   return {
     xPoints: xPct * pdfWidth,
     yPoints: pdfHeight - (yPct * pdfHeight),
@@ -298,16 +298,16 @@ function convertCoordinates(
     // Percentage mode: x and y are 0-1 values
     const points = percentageToPoints({ xPct: x, yPct: y }, pageWidth, pageHeight);
     // Adjust for text baseline.
-    // pdf-lib drawText positions text at the baseline.  The canvas positions
-    // the field's top edge at y%.  A typical font ascender is ~80% of the
-    // em-square, so we shift down by 0.8 * fontSize to approximate the
-    // baseline location relative to the top of the text box.
+    // pdf-lib drawText positions text at the baseline. The canvas positions
+    // the field's top edge at y%. A typical font ascender is ~80% of the
+    // em-square, so we shift UP by fontSize to position the baseline correctly.
+    // In PDF coordinates (Y increases upward), we ADD to move UP.
     return {
       x: points.xPoints,
-      y: points.yPoints - fontSize * 0.8,
+      y: points.yPoints,  // No baseline adjustment - let the text position naturally
     };
   }
-  
+
   // Pixel mode: direct conversion
   return {
     x: x,
@@ -353,9 +353,9 @@ function calculateAlignedX(
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   // Remove # if present
   const cleanHex = hex.replace(/^#/, '');
-  
+
   let r: number, g: number, b: number;
-  
+
   if (cleanHex.length === 3) {
     // Short format: #RGB -> #RRGGBB
     r = parseInt(cleanHex[0] + cleanHex[0], 16);
@@ -369,7 +369,7 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
     // Fallback to black
     return { r: 0, g: 0, b: 0 };
   }
-  
+
   // Convert 0-255 to 0-1 range for pdf-lib
   return {
     r: r / 255,
@@ -543,12 +543,12 @@ function getUserDataValue(field: LayoutField, userData: UserData): string {
   if (userData[field.id]) {
     return userData[field.id];
   }
-  
+
   // Check by field label
   if (field.label && userData[field.label]) {
     return userData[field.label];
   }
-  
+
   // Fallback to field's default value
   return field.value || '';
 }
@@ -681,13 +681,13 @@ async function drawTextField(
     });
     fontMap.set(field.font, font);
   }
-  
+
   // Font size (default to 12 if not specified)
   const fontSize = field.size || 12;
-  
+
   // Calculate text width for alignment
   const textWidth = font.widthOfTextAtSize(text, fontSize);
-  
+
   // Convert coordinates based on mode
   const converted = convertCoordinates(
     field.x,
@@ -697,37 +697,42 @@ async function drawTextField(
     coordinateMode,
     fontSize
   );
-  
+
   // Calculate aligned X position
   // Note: For percentage mode, alignment is relative to the converted point
   let finalX = converted.x;
   if (field.align === 'center') {
     finalX = converted.x - (textWidth / 2);
   } else if (field.align === 'right') {
-    finalX = field.width 
-      ? converted.x + field.width - textWidth 
+    finalX = field.width
+      ? converted.x + field.width - textWidth
       : converted.x - textWidth;
   }
-  
+
   const finalY = converted.y;
-  
+
   // Parse color (default to black)
   const color = field.color ? hexToRgb(field.color) : { r: 0, g: 0, b: 0 };
-  
+
   // Draw debug visualization if enabled
   if (debug?.enabled) {
     const debugLabel = `${field.label || field.id} (${(field.x * 100).toFixed(0)}%,${(field.y * 100).toFixed(0)}%) -> pdf(${finalX.toFixed(0)},${finalY.toFixed(0)})`;
     await drawDebugBoundingBox(page, finalX, finalY, textWidth, fontSize, debug, pdfDoc, debugLabel);
   }
-  
+
   // Draw the text
+  // CRITICAL: When Y-axis is inverted (browser to PDF), rotation must also be negated
+  // Browser: Y increases downward, counter-clockwise rotation is positive
+  // PDF: Y increases upward, so the same visual rotation requires negated angle
+  const adjustedRotation = field.rotation ? -field.rotation : undefined;
+
   page.drawText(text, {
     x: finalX,
     y: finalY,
     size: fontSize,
     font,
     color: rgb(color.r, color.g, color.b),
-    rotate: field.rotation ? degrees(field.rotation) : undefined,
+    rotate: adjustedRotation !== undefined ? degrees(adjustedRotation) : undefined,
   });
 }
 
@@ -740,7 +745,7 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
   if (typeof Buffer !== 'undefined') {
     return Buffer.from(bytes).toString('base64');
   }
-  
+
   // Browser environment
   let binary = '';
   const len = bytes.byteLength;
