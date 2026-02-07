@@ -7,7 +7,7 @@
 // Main PDF generation functions and types
 export {
   generatePDF,
-  generateBatchPDF,
+  generateMergedBatchPDF,
   percentageToPoints,
   pointsToPercentage,
   type UserData,

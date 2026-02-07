@@ -24,7 +24,7 @@ import dynamic from 'next/dynamic';
 
 import { CertificateCanvas, createCanvasField, type CanvasField } from '@/components/CertificateCanvas';
 import { FieldPanel } from '@/components/FieldPanel';
-import { ImagePreview } from '@/components/ImagePreview';
+import { PdfPreview } from '@/components/PdfPreview';
 import { EditorToolbar } from '@/components/EditorToolbar';
 import { ColumnPickerModal } from '@/components/ColumnPickerModal';
 import { useToast } from '@/hooks/useToast';
@@ -34,7 +34,7 @@ import { saveLayout } from '@/lib/actions/layouts';
 import { getAllFontVariableClasses } from '@/lib/fonts';
 import type { TemplateWithLayout } from '@/types/database.types';
 import type { DataSource, LayoutField } from '@/types/database.types';
-import { computeAspectRatio, computePageSize } from '@/lib/pdf/dimensions';
+import { A4_WIDTH, A4_HEIGHT } from '@/lib/pdf/dimensions';
 
 const BatchGenerateModal = dynamic(
   () => import('@/components/BatchGenerateModal').then(m => m.BatchGenerateModal),
@@ -81,20 +81,22 @@ function canvasFieldsToLayoutFields(fields: CanvasField[]): LayoutField[] {
 export interface EditorWorkspaceProps {
   /** The template (with optional layout) fetched on the server */
   template: TemplateWithLayout;
-  /** Signed URL for the certificate image (private bucket access) */
-  imageSignedUrl?: string;
+  /** Signed URL for the certificate PDF (private bucket access) */
+  pdfSignedUrl?: string;
 }
 
 /* -------------------------------------------------------------------------- */
 /*  Component                                                                  */
 /* -------------------------------------------------------------------------- */
 
-export function EditorWorkspace({ template, imageSignedUrl }: EditorWorkspaceProps) {
+export function EditorWorkspace({ template, pdfSignedUrl }: EditorWorkspaceProps) {
   const { showToast } = useToast();
 
-  /* ---- Template dimensions ---- */
-  const aspectRatio = computeAspectRatio(template.width_px, template.height_px);
-  const [, pdfPageHeight] = computePageSize(template.width_px, template.height_px);
+  /* ---- Template dimensions (direct from PDF, no heuristic) ---- */
+  const widthPt = template.width_pt ?? A4_WIDTH;
+  const heightPt = template.height_pt ?? A4_HEIGHT;
+  const aspectRatio = widthPt / heightPt;
+  const pdfPageHeight = heightPt;
 
   /* ---- Field state ---- */
   const initialFields: CanvasField[] = template.layout?.config
@@ -336,8 +338,8 @@ export function EditorWorkspace({ template, imageSignedUrl }: EditorWorkspacePro
         {/* Left: PDF preview with canvas overlay (~70%) */}
         <div className="flex-[7] flex items-start justify-center overflow-auto p-6 bg-[var(--background-muted)]">
           <div className="w-full max-w-3xl">
-            <ImagePreview
-              imageUrl={imageSignedUrl || template.image_url}
+            <PdfPreview
+              pdfUrl={pdfSignedUrl || template.pdf_url}
               aspectRatio={aspectRatio}
             >
               <CertificateCanvas
@@ -349,7 +351,7 @@ export function EditorWorkspace({ template, imageSignedUrl }: EditorWorkspacePro
                 onFieldSelect={setSelectedFieldId}
                 className="w-full h-full"
               />
-            </ImagePreview>
+            </PdfPreview>
           </div>
         </div>
 

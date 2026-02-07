@@ -1,5 +1,4 @@
-// NOTE: The Supabase Storage bucket 'templates' needs its allowed MIME types
-// updated to image/jpeg, image/png via the Supabase Dashboard.
+// NOTE: The Supabase Storage bucket 'templates' accepts PDF files only.
 
 'use client'
 
@@ -13,39 +12,22 @@ import {
   type ChangeEvent,
 } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { createClient } from '@/utils/supabase/client'
 import { createTemplate } from '@/lib/actions/templates'
 import { useToast } from '@/hooks/useToast'
+import type { PdfDimensions } from '@/lib/pdf/extract-dimensions'
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                  */
 /* -------------------------------------------------------------------------- */
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
-const ACCEPTED_MIME_TYPES = new Set(['image/jpeg', 'image/png'])
-const ACCEPTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png'])
+const ACCEPTED_MIME_TYPES = new Set(['application/pdf'])
+const ACCEPTED_EXTENSIONS = new Set(['.pdf'])
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
-
-/** Load an image File and resolve with its natural pixel dimensions. */
-function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file)
-    const img = new window.Image()
-    img.onload = () => {
-      resolve({ width: img.naturalWidth, height: img.naturalHeight })
-      URL.revokeObjectURL(url)
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('Failed to load image for dimension extraction'))
-    }
-    img.src = url
-  })
-}
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -69,11 +51,10 @@ interface UploadModalProps {
 export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const [name, setName] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
-  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
+  const [pdfDimensions, setPdfDimensions] = useState<PdfDimensions | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -108,28 +89,16 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   }, [isOpen])
 
   /* ---------------------------------------------------------------------- */
-  /*  Clean up image preview URL on file change or unmount                   */
-  /* ---------------------------------------------------------------------- */
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl)
-      }
-    }
-  }, [previewUrl])
-
-  /* ---------------------------------------------------------------------- */
   /*  Reset form when modal closes                                           */
   /* ---------------------------------------------------------------------- */
   useEffect(() => {
     if (!isOpen) {
       setName('')
       setFile(null)
-      setPreviewUrl(null)
       setError(null)
       setIsUploading(false)
       setIsDragOver(false)
-      setImageDimensions(null)
+      setPdfDimensions(null)
     }
   }, [isOpen])
 
@@ -139,7 +108,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const validateFile = useCallback((f: File): string | null => {
     const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase()
     if (!ACCEPTED_MIME_TYPES.has(f.type) && !ACCEPTED_EXTENSIONS.has(ext)) {
-      return 'Please select an image file (JPG or PNG)'
+      return 'Please select a PDF file'
     }
     if (f.size > MAX_FILE_SIZE_BYTES) {
       return `File size (${formatFileSize(f.size)}) exceeds the 10 MB limit`
@@ -153,18 +122,17 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       if (validationError) {
         setError(validationError)
         setFile(null)
-        setPreviewUrl(null)
-        setImageDimensions(null)
+        setPdfDimensions(null)
         return
       }
       setError(null)
       setFile(f)
-      setPreviewUrl(URL.createObjectURL(f))
 
-      // Extract image dimensions (non-blocking, fallback to null on failure)
-      getImageDimensions(f)
-        .then(setImageDimensions)
-        .catch(() => setImageDimensions(null))
+      // Extract PDF dimensions (dynamic import to keep pdfjs-dist off critical path)
+      import('@/lib/pdf/extract-dimensions')
+        .then(({ extractPdfDimensions }) => extractPdfDimensions(f))
+        .then(setPdfDimensions)
+        .catch(() => setPdfDimensions(null))
     },
     [validateFile]
   )
@@ -218,7 +186,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
     e.preventDefault()
 
     if (!file || !name.trim()) {
-      setError('Please provide a template name and select an image file')
+      setError('Please provide a template name and select a PDF file')
       return
     }
 
@@ -237,15 +205,14 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
         throw new Error(authError?.message ?? 'Not authenticated')
       }
 
-      // 2. Upload image directly to Supabase Storage (bypasses Vercel body limit)
+      // 2. Upload PDF directly to Supabase Storage (bypasses Vercel body limit)
       const fileId = crypto.randomUUID()
-      const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
-      const storagePath = `${user.id}/${fileId}${ext}`
+      const storagePath = `${user.id}/${fileId}.pdf`
 
       const { error: uploadError } = await supabase.storage
         .from('templates')
         .upload(storagePath, file, {
-          contentType: file.type,
+          contentType: 'application/pdf',
           upsert: false,
         })
 
@@ -262,8 +229,8 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       const { error: createError } = await createTemplate(
         name.trim(),
         urlData.publicUrl,
-        imageDimensions?.width ?? null,
-        imageDimensions?.height ?? null,
+        pdfDimensions?.widthPt ?? null,
+        pdfDimensions?.heightPt ?? null,
       )
 
       if (createError) {
@@ -367,7 +334,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
           {/* Drag-and-drop zone */}
           <div>
             <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">
-              Certificate Image
+              Certificate PDF
             </label>
             <div
               onDragOver={handleDragOver}
@@ -387,25 +354,27 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
               `}
             >
               {file ? (
-                /* File selected – image thumbnail preview */
+                /* File selected – PDF info */
                 <div className="flex items-center gap-3">
-                  {previewUrl && (
-                    <Image
-                      src={previewUrl}
-                      alt="Selected certificate preview"
-                      width={64}
-                      height={64}
-                      className="h-16 w-16 rounded-md object-cover border border-slate-200"
-                      unoptimized
-                    />
-                  )}
+                  <div className="flex items-center justify-center h-16 w-16 rounded-md bg-slate-100 border border-slate-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                  </div>
                   <div className="text-left">
                     <p className="text-sm font-medium text-[var(--foreground)] truncate max-w-[280px]">
                       {file.name}
                     </p>
                     <p className="text-xs text-[var(--foreground-muted)]">
                       {formatFileSize(file.size)}
+                      {pdfDimensions && ` \u2022 ${pdfDimensions.widthPt.toFixed(0)} \u00d7 ${pdfDimensions.heightPt.toFixed(0)} pt`}
                     </p>
+                    {pdfDimensions && pdfDimensions.pageCount > 1 && (
+                      <p className="text-xs text-amber-600 mt-0.5">
+                        {pdfDimensions.pageCount} pages detected — only page 1 will be used
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -432,13 +401,13 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                     <line x1="12" y1="3" x2="12" y2="15" />
                   </svg>
                   <p className="mt-2 text-sm text-[var(--foreground-muted)]">
-                    Drag &amp; drop a photo of your certificate or{' '}
+                    Drag &amp; drop your certificate PDF or{' '}
                     <span className="font-medium text-[var(--primary)]">
                       click to browse
                     </span>
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
-                    JPG or PNG, max 10MB
+                    PDF only, max 10MB
                   </p>
                 </>
               )}
@@ -446,10 +415,10 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                accept="application/pdf,.pdf"
                 onChange={handleFileInputChange}
                 className="hidden"
-                aria-label="Select image file"
+                aria-label="Select PDF file"
               />
             </div>
           </div>

@@ -18,16 +18,16 @@ export type SystemHealthStatus = 'healthy' | 'degraded' | 'offline';
 
 /**
  * Template represents a certificate template
- * Images are stored in Supabase Storage, not in the database
+ * PDF files are stored in Supabase Storage, not in the database
  */
 export interface Template {
   id: string; // UUID
   owner_id: string; // UUID - Foreign key to auth.users
-  image_url: string; // URL to certificate image (JPG/PNG) in Supabase Storage
+  pdf_url: string; // URL to certificate PDF template in Supabase Storage
   name: string; // User-defined name
   created_at: string; // ISO 8601 timestamp
-  width_px: number | null; // Natural image width in pixels (NULL for legacy templates)
-  height_px: number | null; // Natural image height in pixels (NULL for legacy templates)
+  width_pt: number | null; // PDF page width in points (1pt = 1/72 inch)
+  height_pt: number | null; // PDF page height in points (1pt = 1/72 inch)
 }
 
 /**
@@ -36,10 +36,10 @@ export interface Template {
  */
 export interface TemplateInsert {
   owner_id: string;
-  image_url: string;
+  pdf_url: string;
   name: string;
-  width_px?: number | null;
-  height_px?: number | null;
+  width_pt?: number | null;
+  height_pt?: number | null;
 }
 
 /**
@@ -47,10 +47,10 @@ export interface TemplateInsert {
  * All fields are optional except what's being updated
  */
 export interface TemplateUpdate {
-  image_url?: string;
+  pdf_url?: string;
   name?: string;
-  width_px?: number | null;
-  height_px?: number | null;
+  width_pt?: number | null;
+  height_pt?: number | null;
 }
 
 // ============================================================================
@@ -217,48 +217,18 @@ export interface TemplateWithLayout extends Template {
   layout?: Layout;
 }
 
-/**
- * Coordinate conversion utilities
- * CRITICAL: Browser uses Top-Left (0,0), PDF uses Bottom-Left (0,0)
- */
-export interface BrowserCoordinate {
-  x: number;
-  y: number;
-}
-
-export interface PDFCoordinate {
-  x: number;
-  y: number;
-}
+// ============================================================================
+// COORDINATE TYPES (Re-exported from lib/coordinates.ts)
+// ============================================================================
 
 /**
- * Convert Browser coordinates to PDF coordinates
- * @param browser Browser coordinate (Top-Left origin)
- * @param pageHeight Height of the PDF page in pixels
- * @returns PDF coordinate (Bottom-Left origin)
+ * @deprecated Import from '@/lib/coordinates' instead
+ * These re-exports exist for backwards compatibility only.
  */
-export function browserToPDF(
-  browser: BrowserCoordinate,
-  pageHeight: number
-): PDFCoordinate {
-  return {
-    x: browser.x,
-    y: pageHeight - browser.y,
-  };
-}
+export {
+  type BrowserCoordinate,
+  type PDFCoordinate,
+  browserToPDF,
+  pdfToBrowser,
+} from '@/lib/coordinates';
 
-/**
- * Convert PDF coordinates to Browser coordinates
- * @param pdf PDF coordinate (Bottom-Left origin)
- * @param pageHeight Height of the PDF page in pixels
- * @returns Browser coordinate (Top-Left origin)
- */
-export function pdfToBrowser(
-  pdf: PDFCoordinate,
-  pageHeight: number
-): BrowserCoordinate {
-  return {
-    x: pdf.x,
-    y: pageHeight - pdf.y,
-  };
-}

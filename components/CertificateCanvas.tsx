@@ -21,7 +21,6 @@
 'use client';
 
 import { useState, useCallback, useMemo, KeyboardEvent } from 'react';
-import Image from 'next/image';
 import {
   DndContext,
   DragEndEvent,
@@ -63,13 +62,10 @@ export interface CanvasField extends LayoutField {
 export interface CertificateCanvasProps {
   /** Array of fields to display on the canvas */
   fields: CanvasField[];
-  
+
   /** Callback when fields are updated (position changes) */
   onFieldsChange: (fields: CanvasField[]) => void;
-  
-  /** Background image URL (PDF preview image) */
-  backgroundUrl?: string;
-  
+
   /** Aspect ratio of the certificate (default: US Letter 8.5/11) */
   aspectRatio?: number;
   
@@ -103,7 +99,6 @@ export interface CertificateCanvasProps {
  * <CertificateCanvas
  *   fields={fields}
  *   onFieldsChange={setFields}
- *   backgroundUrl="/api/template/preview.png"
  *   selectedFieldId={selectedId}
  *   onFieldSelect={setSelectedId}
  * />
@@ -112,7 +107,6 @@ export interface CertificateCanvasProps {
 export function CertificateCanvas({
   fields,
   onFieldsChange,
-  backgroundUrl,
   aspectRatio = 8.5 / 11, // US Letter default
   selectedFieldId = null,
   onFieldSelect,
@@ -358,30 +352,11 @@ export function CertificateCanvas({
           {/* Canvas surface */}
           <div
             ref={containerRef}
-            className={`
-              absolute inset-0
-              rounded-lg
-              overflow-hidden
-              z-canvas
-              ${backgroundUrl ? 'canvas-container' : ''}
-            `}
+            className="absolute inset-0 rounded-lg overflow-hidden z-canvas"
             onClick={handleCanvasClick}
             role="application"
             aria-label="Certificate canvas - drag fields to position them"
           >
-            {/* Background image (PDF preview) - only when used standalone */}
-            {backgroundUrl && (
-              <Image
-                src={backgroundUrl}
-                alt="Certificate template background"
-                fill
-                className="object-contain pointer-events-none"
-                draggable={false}
-                priority
-                unoptimized // Allow external URLs without domain config
-              />
-            )}
-
             {/* Draggable fields */}
             {isReady && fields.map((field) => (
               <DraggableField
