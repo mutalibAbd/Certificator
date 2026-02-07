@@ -1,10 +1,10 @@
 /**
- * PDF dimension constants.
+ * PDF Dimension Constants
  *
- * A4 page dimensions in PDF points (1pt = 1/72 inch).
- * Used as fallback when a template has no stored dimensions.
+ * Re-exports dimension constants from the central coordinates module.
+ * This file exists for backwards compatibility with existing imports.
+ *
+ * @deprecated Prefer importing directly from '@/lib/coordinates'
  */
 
-/** A4 page dimensions in PDF points (1pt = 1/72 inch) */
-export const A4_WIDTH = 595.28;
-export const A4_HEIGHT = 841.89;
+export { A4_WIDTH, A4_HEIGHT, PAGE_DIMENSIONS } from '@/lib/coordinates';

@@ -217,48 +217,18 @@ export interface TemplateWithLayout extends Template {
   layout?: Layout;
 }
 
-/**
- * Coordinate conversion utilities
- * CRITICAL: Browser uses Top-Left (0,0), PDF uses Bottom-Left (0,0)
- */
-export interface BrowserCoordinate {
-  x: number;
-  y: number;
-}
-
-export interface PDFCoordinate {
-  x: number;
-  y: number;
-}
+// ============================================================================
+// COORDINATE TYPES (Re-exported from lib/coordinates.ts)
+// ============================================================================
 
 /**
- * Convert Browser coordinates to PDF coordinates
- * @param browser Browser coordinate (Top-Left origin)
- * @param pageHeight Height of the PDF page in pixels
- * @returns PDF coordinate (Bottom-Left origin)
+ * @deprecated Import from '@/lib/coordinates' instead
+ * These re-exports exist for backwards compatibility only.
  */
-export function browserToPDF(
-  browser: BrowserCoordinate,
-  pageHeight: number
-): PDFCoordinate {
-  return {
-    x: browser.x,
-    y: pageHeight - browser.y,
-  };
-}
+export {
+  type BrowserCoordinate,
+  type PDFCoordinate,
+  browserToPDF,
+  pdfToBrowser,
+} from '@/lib/coordinates';
 
-/**
- * Convert PDF coordinates to Browser coordinates
- * @param pdf PDF coordinate (Bottom-Left origin)
- * @param pageHeight Height of the PDF page in pixels
- * @returns Browser coordinate (Top-Left origin)
- */
-export function pdfToBrowser(
-  pdf: PDFCoordinate,
-  pageHeight: number
-): BrowserCoordinate {
-  return {
-    x: pdf.x,
-    y: pageHeight - pdf.y,
-  };
-}

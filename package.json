@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "fonts:download": "npx tsx scripts/download-fonts.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

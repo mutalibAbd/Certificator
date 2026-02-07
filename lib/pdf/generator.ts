@@ -16,10 +16,20 @@
 import { PDFDocument, PDFFont, PDFPage, rgb, StandardFonts, degrees } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import type { LayoutField } from '@/types/database.types';
+import { loadFont as loadFontOptimized } from './font-loader';
+import {
+  A4_WIDTH,
+  A4_HEIGHT,
+  type NormalizedCoordinate,
+  type PDFPointCoordinate,
+  percentageToPoints as percentageToPointsUtil,
+  pointsToPercentage as pointsToPercentageUtil,
+  browserYToPdfY as browserYToPdfYUtil,
+} from '@/lib/coordinates';
 
-/** A4 page dimensions in PDF points (1 point = 1/72 inch) */
-const A4_WIDTH = 595.28;
-const A4_HEIGHT = 841.89;
+// Re-export constants for backwards compatibility
+export { A4_WIDTH, A4_HEIGHT };
+
 
 // ============================================================================
 // TYPES
@@ -90,189 +100,42 @@ export interface GeneratePDFResult {
 }
 
 // ============================================================================
-// STANDARD FONTS
+// COORDINATE CONVERSION (delegated to @/lib/coordinates)
 // ============================================================================
 
-/**
- * Standard font mapping for pdf-lib
- * These don't require external font files
- */
-const STANDARD_FONTS: Record<string, StandardFonts> = {
-  'Helvetica': StandardFonts.Helvetica,
-  'Helvetica-Bold': StandardFonts.HelveticaBold,
-  'Helvetica-Oblique': StandardFonts.HelveticaOblique,
-  'Helvetica-BoldOblique': StandardFonts.HelveticaBoldOblique,
-  'Times-Roman': StandardFonts.TimesRoman,
-  'Times-Bold': StandardFonts.TimesRomanBold,
-  'Times-Italic': StandardFonts.TimesRomanItalic,
-  'Times-BoldItalic': StandardFonts.TimesRomanBoldItalic,
-  'Courier': StandardFonts.Courier,
-  'Courier-Bold': StandardFonts.CourierBold,
-  'Courier-Oblique': StandardFonts.CourierOblique,
-  'Courier-BoldOblique': StandardFonts.CourierBoldOblique,
-};
-
-/**
- * Google Font family names -> Google Fonts API names.
- * Used to fetch TTF files for embedding in PDFs.
- */
-const GOOGLE_FONT_FAMILIES: Record<string, string> = {
-  'Pinyon Script': 'Pinyon+Script',
-  'Great Vibes': 'Great+Vibes',
-  'Dancing Script': 'Dancing+Script',
-  'Sacramento': 'Sacramento',
-  'Pacifico': 'Pacifico',
-  'Caveat': 'Caveat',
-};
-
-/** In-memory cache for downloaded font bytes (avoids re-fetching per page) */
-const fontBytesCache = new Map<string, Uint8Array>();
-
-/**
- * Fetch a Google Font TTF and return the raw bytes.
- * Results are cached in memory for the lifetime of the process.
- */
-async function fetchGoogleFontBytes(fontFamily: string): Promise<Uint8Array | null> {
-  if (fontBytesCache.has(fontFamily)) {
-    return fontBytesCache.get(fontFamily)!;
-  }
-
-  const apiName = GOOGLE_FONT_FAMILIES[fontFamily];
-  if (!apiName) return null;
-
-  try {
-    // Request CSS from Google Fonts with a User-Agent that returns TTF URLs
-    const cssUrl = `https://fonts.googleapis.com/css2?family=${apiName}&display=swap`;
-    const cssRes = await fetch(cssUrl, {
-      headers: {
-        // This User-Agent causes Google Fonts to return TTF (not woff2)
-        'User-Agent': 'Mozilla/5.0 (compatible; pdf-generator) AppleWebKit/537.36',
-      },
-    });
-
-    if (!cssRes.ok) return null;
-    const css = await cssRes.text();
-
-    // Extract the first font file URL from the CSS
-    const urlMatch = css.match(/url\(([^)]+\.ttf[^)]*)\)/i)
-      || css.match(/url\(([^)]+)\)/i);
-
-    if (!urlMatch?.[1]) return null;
-
-    const fontUrl = urlMatch[1].replace(/['"]/g, '');
-    const fontRes = await fetch(fontUrl);
-    if (!fontRes.ok) return null;
-
-    const buffer = await fontRes.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    fontBytesCache.set(fontFamily, bytes);
-    return bytes;
-  } catch (err) {
-    console.warn(`Failed to fetch Google Font "${fontFamily}":`, err);
-    return null;
-  }
-}
-
-// ============================================================================
-// COORDINATE CONVERSION
-// ============================================================================
-
-/**
- * Percentage-based coordinate in 0-1 range
- * (0, 0) = top-left corner
- * (1, 1) = bottom-right corner
- */
-export interface PercentageCoordinate {
-  xPct: number; // 0-1 range (percentage of width)
-  yPct: number; // 0-1 range (percentage of height)
-}
-
-/**
- * PDF coordinate in points
- * (0, 0) = bottom-left corner (PDF standard)
- */
-export interface PDFPointCoordinate {
-  xPoints: number;
-  yPoints: number;
-}
+// Re-export types for backwards compatibility
+export type PercentageCoordinate = NormalizedCoordinate;
+export type { PDFPointCoordinate };
 
 /**
  * Convert percentage coordinates to PDF points
- * 
- * CRITICAL FORMULA (per Typesetter Protocol):
- * - xPoints = xPct * pdfWidth
- * - yPoints = pdfHeight - (yPct * pdfHeight)
- * 
- * This handles the Y-axis inversion automatically:
- * - Input: (0,0) at top-left, Y increases downward (browser/percentage)
- * - Output: (0,0) at bottom-left, Y increases upward (PDF)
- * 
- * @param coord - Percentage coordinate (0-1 range)
- * @param pdfWidth - Width of the PDF page in points
- * @param pdfHeight - Height of the PDF page in points
- * @returns PDF coordinate in points
- * 
- * @example
- * // Center of page
- * percentageToPoints({ xPct: 0.5, yPct: 0.5 }, 612, 792)
- * // Returns: { xPoints: 306, yPoints: 396 }
- * 
- * @example
- * // Top-left corner
- * percentageToPoints({ xPct: 0, yPct: 0 }, 612, 792)
- * // Returns: { xPoints: 0, yPoints: 792 }
+ * @deprecated Use `percentageToPoints` from '@/lib/coordinates' directly
  */
 export function percentageToPoints(
   coord: PercentageCoordinate,
   pdfWidth: number,
   pdfHeight: number
 ): PDFPointCoordinate {
-  // Validate percentage range (clamp to 0-1)
-  const xPct = Math.max(0, Math.min(1, coord.xPct));
-  const yPct = Math.max(0, Math.min(1, coord.yPct));
-
-  return {
-    xPoints: xPct * pdfWidth,
-    yPoints: pdfHeight - (yPct * pdfHeight),
-  };
+  return percentageToPointsUtil(coord, pdfWidth, pdfHeight);
 }
 
 /**
  * Convert PDF points back to percentage coordinates
- * Inverse of percentageToPoints for round-trip conversions
- * 
- * @param points - PDF coordinate in points
- * @param pdfWidth - Width of the PDF page in points
- * @param pdfHeight - Height of the PDF page in points
- * @returns Percentage coordinate (0-1 range)
+ * @deprecated Use `pointsToPercentage` from '@/lib/coordinates' directly
  */
 export function pointsToPercentage(
   points: PDFPointCoordinate,
   pdfWidth: number,
   pdfHeight: number
 ): PercentageCoordinate {
-  return {
-    xPct: points.xPoints / pdfWidth,
-    yPct: (pdfHeight - points.yPoints) / pdfHeight,
-  };
+  return pointsToPercentageUtil(points, pdfWidth, pdfHeight);
 }
 
 /**
  * Convert Browser Y coordinate to PDF Y coordinate
- * 
- * CRITICAL: This is the "Physical-Digital Gap" conversion
- * Browser: Top-Left origin, Y increases downward
- * PDF: Bottom-Left origin, Y increases upward
- * 
- * @param browserY - Y coordinate in Browser coordinate system
- * @param pageHeight - Height of the PDF page in points
- * @param fontSize - Font size (text baseline adjustment)
- * @returns Y coordinate in PDF coordinate system
  */
 function browserYToPdfY(browserY: number, pageHeight: number, fontSize: number = 0): number {
-  // Y_pdf = PageHeight - Y_browser
-  // We subtract fontSize to account for text baseline (text draws from baseline up)
-  return pageHeight - browserY - fontSize;
+  return browserYToPdfYUtil(browserY, pageHeight, fontSize);
 }
 
 /**
@@ -310,34 +173,6 @@ function convertCoordinates(
     x: x,
     y: browserYToPdfY(y, pageHeight, fontSize),
   };
-}
-
-/**
- * Calculate X position for text alignment
- * 
- * @param x - Original X position
- * @param textWidth - Width of the text being drawn
- * @param align - Alignment mode
- * @param fieldWidth - Optional field width for right alignment
- * @returns Adjusted X position
- */
-function _calculateAlignedX(
-  x: number,
-  textWidth: number,
-  align: 'left' | 'center' | 'right' = 'left',
-  fieldWidth?: number
-): number {
-  switch (align) {
-    case 'center':
-      // X_draw = X_point - (W_text / 2)
-      return x - (textWidth / 2);
-    case 'right':
-      // For right align, either use field width or just offset by text width
-      return fieldWidth ? x + fieldWidth - textWidth : x - textWidth;
-    case 'left':
-    default:
-      return x;
-  }
 }
 
 /**
@@ -380,53 +215,19 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 // ============================================================================
 
 /**
- * Options for font loading
- */
-interface FontLoadOptions {
-  /** Whether to use bold variant */
-  bold?: boolean;
-  /** Whether to use italic variant */
-  italic?: boolean;
-}
-
-/**
  * Load a font into the PDF document.
- * 1. Try standard PDF fonts (Helvetica, Times, Courier families)
- * 2. Try fetching a Google Font TTF and embedding it
- * 3. Fall back to Helvetica
+ * Delegates to the optimized font loader which tries:
+ * 1. Standard PDF fonts (Helvetica, Times, Courier families)
+ * 2. Local bundled fonts from /public/fonts/
+ * 3. Google Fonts API as fallback
+ * 4. Helvetica as last resort
  */
 async function loadFont(
   pdfDoc: PDFDocument,
   fontName: string,
-  options: FontLoadOptions = {}
+  options: { bold?: boolean; italic?: boolean } = {}
 ): Promise<PDFFont> {
-  const { bold = false, italic = false } = options;
-
-  // Build font variant name for standard fonts
-  let variantName = fontName;
-  if (bold && italic) {
-    variantName = `${fontName}-BoldOblique`;
-  } else if (bold) {
-    variantName = `${fontName}-Bold`;
-  } else if (italic) {
-    variantName = `${fontName}-Oblique`;
-  }
-
-  // Try standard fonts first
-  const standardFont = STANDARD_FONTS[variantName] || STANDARD_FONTS[fontName];
-  if (standardFont) {
-    return pdfDoc.embedFont(standardFont);
-  }
-
-  // Try Google Font (TTF embedding)
-  const fontBytes = await fetchGoogleFontBytes(fontName);
-  if (fontBytes) {
-    return pdfDoc.embedFont(fontBytes);
-  }
-
-  // Fallback to Helvetica
-  console.warn(`Font "${fontName}" not available, falling back to Helvetica`);
-  return pdfDoc.embedFont(StandardFonts.Helvetica);
+  return loadFontOptimized(pdfDoc, fontName, options);
 }
 
 // ============================================================================

@@ -56,20 +56,16 @@ export function PdfPreview({
 
     async function loadAndRender() {
       try {
-        console.log('[PdfPreview] Loading PDF from:', pdfUrl?.substring(0, 120));
-        const { pdfjsLib } = await import('@/lib/pdf/pdfjs-setup');
+        const [{ pdfjsLib }, { fetchPDFWithCache }] = await Promise.all([
+          import('@/lib/pdf/pdfjs-setup'),
+          import('@/lib/pdf/pdf-cache'),
+        ]);
 
         // Load PDF (cache the document proxy)
         if (!pdfDocRef.current) {
-          // Fetch the PDF data ourselves to avoid CORS issues with
-          // pdfjs-dist's internal XHR when loading cross-origin signed URLs.
-          const response = await fetch(pdfUrl);
-          console.log('[PdfPreview] Fetch response:', response.status, response.headers.get('content-type'));
-          if (!response.ok) {
-            const body = await response.text().catch(() => '');
-            throw new Error(`Failed to fetch PDF (${response.status}): ${body.substring(0, 200)}`);
-          }
-          const arrayBuffer = await response.arrayBuffer();
+          // Use IndexedDB cache for faster subsequent loads
+          // Falls back to network fetch if not cached
+          const arrayBuffer = await fetchPDFWithCache(pdfUrl);
           const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
           pdfDocRef.current = await loadingTask.promise;
         }
@@ -137,7 +133,12 @@ export function PdfPreview({
       } catch (err) {
         console.error('[PdfPreview] Failed to load/render PDF:', err);
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : 'Failed to render PDF';
+          let msg = err instanceof Error ? err.message : 'Failed to render PDF';
+
+          if (msg.includes('403')) {
+            msg = 'Session expired. Please refresh the page.';
+          }
+
           setError(msg);
           setIsLoading(false);
         }

@@ -28,7 +28,7 @@ function formatDate(dateStr: string): string {
   }
 }
 
-export default function TemplateCard({ template, signedPdfUrl: _signedPdfUrl }: TemplateCardProps) {
+export default function TemplateCard({ template }: TemplateCardProps) {
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
   const { showToast } = useToast()

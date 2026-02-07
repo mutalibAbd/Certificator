@@ -90,6 +90,51 @@ export async function createTemplate(
     if (widthPt != null) payload.width_pt = widthPt
     if (heightPt != null) payload.height_pt = heightPt
 
+    // SECURITY: key validations
+    // 1. Ownership check by path structure
+    const storagePath = extractStoragePath(pdfUrl)
+    if (!storagePath) {
+      return { data: null, error: 'Invalid PDF URL structure' }
+    }
+
+    if (!storagePath.includes(user.id)) {
+      return { data: null, error: 'Unauthorized: File path does not match user ID' }
+    }
+
+    // 2. Extension check
+    if (!storagePath.toLowerCase().endsWith('.pdf')) {
+      return { data: null, error: 'Invalid file type: Must be a PDF' }
+    }
+
+    // 3. Existence & Metadata check via Storage API
+    // We list files in the user's folder filtering by the specific filename
+    const fileName = storagePath.split('/').pop()
+    if (!fileName) {
+      return { data: null, error: 'Invalid file name' }
+    }
+
+    // Use .list() to verify file exists and get metadata
+    const { data: files, error: storageError } = await supabase.storage
+      .from('templates')
+      .list(user.id, {
+        limit: 1,
+        search: fileName,
+      })
+
+    if (storageError) {
+      return { data: null, error: `Storage verification failed: ${storageError.message}` }
+    }
+
+    if (!files || files.length === 0) {
+      return { data: null, error: 'File not found in storage. Upload may have failed.' }
+    }
+
+    const fileParams = files[0]
+    // Optional: Check mime-type if available (Supabase storage metadata)
+    if (fileParams.metadata?.mimetype && fileParams.metadata.mimetype !== 'application/pdf') {
+      return { data: null, error: `Invalid content type: ${fileParams.metadata.mimetype}` }
+    }
+
     const { data, error } = await table(supabase, 'templates')
       .insert(payload)
       .select()

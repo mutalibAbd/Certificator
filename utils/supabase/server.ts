@@ -46,7 +46,6 @@
  */
 
 import { createServerClient } from '@supabase/ssr';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import type { Database } from '@/types/database.types';
 
@@ -109,57 +108,8 @@ export async function createClient() {
 
 /**
  * Create a Supabase admin client with service role key
- * 
- * WARNING: This client BYPASSES Row Level Security (RLS)!
- * 
- * Only use for:
- * - Keep-alive health checks (system_health table)
- * - Admin operations that require elevated privileges
- * - Background jobs that don't have a user context
- * 
- * NEVER use this client:
- * - In response to user input without validation
- * - In Client Components (would expose service key)
- * - For operations that should respect user permissions
- * 
- * @example Keep-Alive Pulse
- * ```tsx
- * import { createAdminClient } from '@/utils/supabase/server';
- * 
- * export async function POST(request: Request) {
- *   const supabase = createAdminClient();
- *   await supabase
- *     .from('system_health')
- *     .update({ last_pulse: new Date().toISOString() })
- *     .eq('id', '00000000-0000-0000-0000-000000000001');
- * }
- * ```
- * 
- * @returns SupabaseClient with service role privileges
+ *
+ * @deprecated Use `createAdminClient` from `@/lib/supabase-admin` instead.
+ * This re-export ensures backward compatibility but points to the securely implemented version.
  */
-export function createAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl) {
-    throw new Error(
-      'Missing NEXT_PUBLIC_SUPABASE_URL environment variable.'
-    );
-  }
-
-  if (!supabaseServiceKey) {
-    throw new Error(
-      'Missing SUPABASE_SERVICE_ROLE_KEY environment variable. ' +
-      'This key is required for admin operations.'
-    );
-  }
-
-  // Use standard Supabase client for service role operations
-  // Service role bypasses RLS, so no user session/cookies needed
-  return createSupabaseClient<Database>(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-}
+export { createAdminClient } from '@/lib/supabase-admin';
