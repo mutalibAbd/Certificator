@@ -297,10 +297,14 @@ function convertCoordinates(
   if (mode === 'percentage') {
     // Percentage mode: x and y are 0-1 values
     const points = percentageToPoints({ xPct: x, yPct: y }, pageWidth, pageHeight);
-    // Adjust for text baseline
+    // Adjust for text baseline.
+    // pdf-lib drawText positions text at the baseline.  The canvas positions
+    // the field's top edge at y%.  A typical font ascender is ~80% of the
+    // em-square, so we shift down by 0.8 * fontSize to approximate the
+    // baseline location relative to the top of the text box.
     return {
       x: points.xPoints,
-      y: points.yPoints - fontSize,
+      y: points.yPoints - fontSize * 0.8,
     };
   }
   
@@ -556,26 +560,30 @@ function getUserDataValue(field: LayoutField, userData: UserData): string {
 /**
  * Draw debug bounding box around text
  * Used for visual verification during development
- * 
+ *
  * @param page - PDF page to draw on
  * @param x - X position of text
  * @param y - Y position of text baseline
  * @param textWidth - Width of the text
  * @param textHeight - Height of the text (fontSize)
  * @param debug - Debug options
+ * @param pdfDoc - PDF document (for font embedding)
+ * @param fieldLabel - Optional label showing field name and coordinates
  */
-function drawDebugBoundingBox(
+async function drawDebugBoundingBox(
   page: PDFPage,
   x: number,
   y: number,
   textWidth: number,
   textHeight: number,
-  debug: DebugOptions
-): void {
+  debug: DebugOptions,
+  pdfDoc?: PDFDocument,
+  fieldLabel?: string,
+): Promise<void> {
   const color = debug.color ? hexToRgb(debug.color) : { r: 1, g: 0, b: 0 }; // Default red
   const lineWidth = debug.lineWidth ?? 0.5;
   const padding = 2; // Small padding around text
-  
+
   // Draw bounding box (rectangle around text)
   if (debug.showBoundingBoxes !== false) {
     page.drawRectangle({
@@ -588,11 +596,11 @@ function drawDebugBoundingBox(
       opacity: 0.8,
     });
   }
-  
+
   // Draw position marker (crosshair at anchor point)
   if (debug.showPositionMarkers) {
     const markerSize = 8;
-    
+
     // Vertical line
     page.drawLine({
       start: { x: x, y: y - markerSize },
@@ -600,7 +608,7 @@ function drawDebugBoundingBox(
       color: rgb(color.r, color.g, color.b),
       thickness: lineWidth,
     });
-    
+
     // Horizontal line at baseline
     page.drawLine({
       start: { x: x - markerSize, y: y },
@@ -608,7 +616,7 @@ function drawDebugBoundingBox(
       color: rgb(color.r, color.g, color.b),
       thickness: lineWidth,
     });
-    
+
     // Small circle at anchor point
     page.drawCircle({
       x: x,
@@ -617,6 +625,23 @@ function drawDebugBoundingBox(
       borderColor: rgb(color.r, color.g, color.b),
       borderWidth: lineWidth,
     });
+
+    // Draw coordinate label if provided
+    if (fieldLabel && pdfDoc) {
+      try {
+        const labelFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const labelSize = 7;
+        page.drawText(fieldLabel, {
+          x: x + 6,
+          y: y + textHeight + 4,
+          size: labelSize,
+          font: labelFont,
+          color: rgb(color.r, color.g, color.b),
+        });
+      } catch {
+        // Silently skip label if font embedding fails
+      }
+    }
   }
 }
 
@@ -691,7 +716,8 @@ async function drawTextField(
   
   // Draw debug visualization if enabled
   if (debug?.enabled) {
-    drawDebugBoundingBox(page, finalX, finalY, textWidth, fontSize, debug);
+    const debugLabel = `${field.label || field.id} (${(field.x * 100).toFixed(0)}%,${(field.y * 100).toFixed(0)}%) -> pdf(${finalX.toFixed(0)},${finalY.toFixed(0)})`;
+    await drawDebugBoundingBox(page, finalX, finalY, textWidth, fontSize, debug, pdfDoc, debugLabel);
   }
   
   // Draw the text

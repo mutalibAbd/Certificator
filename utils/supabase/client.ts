@@ -25,17 +25,22 @@
 import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from '@/types/database.types';
 
+/** Module-level singleton so we don't create a new client on every call. */
+let _client: ReturnType<typeof createBrowserClient<Database>> | null = null;
+
 /**
- * Create a Supabase client for browser/client-side usage
- * 
+ * Create (or return the cached) Supabase client for browser/client-side usage
+ *
  * SECURITY:
  * - Uses public anon key (safe for client-side)
  * - RLS policies are enforced
  * - User session is managed via cookies
- * 
+ *
  * @returns Supabase client instance with Database types
  */
 export function createClient() {
+  if (_client) return _client;
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -46,5 +51,6 @@ export function createClient() {
     );
   }
 
-  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+  _client = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+  return _client;
 }

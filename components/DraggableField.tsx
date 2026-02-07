@@ -88,11 +88,21 @@ export function DraggableField({
   });
 
   // Calculate transform style for dragging
-  // Combine drag translation with field rotation
+  // Combine drag translation with alignment offset and field rotation.
+  // Alignment offset ensures the canvas anchors text the same way the
+  // PDF generator does:
+  //   center → the CENTER of the text sits at (x%, y%)
+  //   right  → the RIGHT edge of the text sits at (x%, y%)
+  //   left   → the LEFT edge sits at (x%, y%)  (no offset)
   const dragTranslate = CSS.Translate.toString(transform);
+  const alignOffset =
+    field.align === 'center' ? 'translateX(-50%)'
+    : field.align === 'right' ? 'translateX(-100%)'
+    : '';
   const rotationDeg = field.rotation || 0;
   const combinedTransform = [
     dragTranslate,
+    alignOffset,
     rotationDeg ? `rotate(${rotationDeg}deg)` : '',
   ].filter(Boolean).join(' ');
 

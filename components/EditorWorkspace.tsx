@@ -442,27 +442,31 @@ export function EditorWorkspace({ template, imageSignedUrl }: EditorWorkspacePro
         </div>
       </div>
 
-      {/* Generate Single Certificate Modal */}
-      <GenerateModal
-        templateId={template.id}
-        templateName={template.name}
-        fields={fields}
-        isOpen={isGenerateOpen}
-        onClose={() => setIsGenerateOpen(false)}
-        initialData={parsedData ? Object.fromEntries(
-          parsedData.headers.map((h, i) => [h, parsedData.rows[0]?.[i] || ''])
-        ) : undefined}
-      />
+      {/* Generate Single Certificate Modal (only mount when open) */}
+      {isGenerateOpen && (
+        <GenerateModal
+          templateId={template.id}
+          templateName={template.name}
+          fields={fields}
+          isOpen={isGenerateOpen}
+          onClose={() => setIsGenerateOpen(false)}
+          initialData={parsedData ? Object.fromEntries(
+            parsedData.headers.map((h, i) => [h, parsedData.rows[0]?.[i] || ''])
+          ) : undefined}
+        />
+      )}
 
-      {/* Batch Generate Modal */}
-      <BatchGenerateModal
-        templateId={template.id}
-        templateName={template.name}
-        fields={fields}
-        isOpen={isBatchOpen}
-        onClose={() => setIsBatchOpen(false)}
-        preloadedData={parsedData ?? undefined}
-      />
+      {/* Batch Generate Modal (only mount when open) */}
+      {isBatchOpen && (
+        <BatchGenerateModal
+          templateId={template.id}
+          templateName={template.name}
+          fields={fields}
+          isOpen={isBatchOpen}
+          onClose={() => setIsBatchOpen(false)}
+          preloadedData={parsedData ?? undefined}
+        />
+      )}
 
       {/* Column Picker Modal */}
       {pendingData && (

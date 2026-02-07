@@ -94,7 +94,12 @@ export async function middleware(request: NextRequest) {
     isAuthRoute(pathname) ||
     PUBLIC_API_ROUTES.some((route) => pathname.startsWith(route));
 
-  if (isPublic && !request.cookies.get('sb-access-token')?.value) {
+  // Check for any Supabase auth cookie (format: sb-<project-ref>-auth-token)
+  const hasAuthCookie = request.cookies.getAll().some(
+    (c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'),
+  );
+
+  if (isPublic && !hasAuthCookie) {
     // No session cookie at all — definitely not logged in, skip auth.
     return supabaseResponse;
   }

@@ -13,6 +13,16 @@ import type { NextConfig } from "next";
  * at the top of the route file to extend timeout.
  */
 const nextConfig: NextConfig = {
+  // Disable X-Powered-By header (minor security & bytes-on-wire win)
+  poweredByHeader: false,
+
+  // Skip server-side gzip — Vercel/CDN handles compression at the edge
+  compress: false,
+
+  // Keep heavy server-only packages out of the bundled server JS so they
+  // are require()-d at runtime instead.  Reduces cold-start parse time.
+  serverExternalPackages: ['pdf-lib', '@pdf-lib/fontkit'],
+
   /**
    * Server Actions Configuration
    * 

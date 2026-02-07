@@ -1,9 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import type { Template } from '@/types/database.types'
 import TemplateCard from '@/components/TemplateCard'
-import UploadModal from '@/components/UploadModal'
+
+const UploadModal = dynamic(
+  () => import('@/components/UploadModal'),
+  { ssr: false },
+)
 
 type TemplateWithSignedUrl = Template & { signedImageUrl: string }
 
@@ -103,10 +108,12 @@ export default function DashboardContent({ templates }: DashboardContentProps) {
         </div>
       )}
 
-      <UploadModal
-        isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
-      />
+      {isUploadOpen && (
+        <UploadModal
+          isOpen={isUploadOpen}
+          onClose={() => setIsUploadOpen(false)}
+        />
+      )}
     </>
   )
 }

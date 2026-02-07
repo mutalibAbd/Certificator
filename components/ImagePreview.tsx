@@ -40,7 +40,7 @@ export function ImagePreview({
         src={imageUrl}
         alt="Certificate template"
         draggable={false}
-        className="absolute inset-0 w-full h-full object-contain"
+        className="absolute inset-0 w-full h-full object-fill"
       />
       <div className="absolute inset-0 z-canvas">
         {children}

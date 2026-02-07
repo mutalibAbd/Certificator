@@ -20,8 +20,9 @@
 import { useState, useCallback, useEffect } from 'react'
 
 import type { CanvasField } from '@/components/CertificateCanvas'
-import { generateCertificate } from '@/lib/actions/generate'
+import { generateCertificateFromLayout } from '@/lib/actions/generate'
 import { useToast } from '@/hooks/useToast'
+import type { LayoutField } from '@/types/database.types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -95,6 +96,7 @@ export function GenerateModal({
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [debugMode, setDebugMode] = useState(false)
 
   // Only text and date fields can be populated with user values
   const editableFields = fields.filter(
@@ -142,9 +144,23 @@ export function GenerateModal({
     setError(null)
 
     try {
-      const { data, error: genError } = await generateCertificate(
+      // Convert canvas fields to layout fields (strip the `position` prop)
+      const layoutFields: LayoutField[] = fields
+        .filter((f) => f.type === 'text' || f.type === 'date')
+        .map(({ position, ...rest }) => ({
+          ...rest,
+          x: position.x,
+          y: position.y,
+        }))
+
+      // Use the client-side layout action — this ensures the PDF uses
+      // exactly the coordinates the user sees on the canvas, even if
+      // unsaved changes exist.
+      const { data, error: genError } = await generateCertificateFromLayout(
         templateId,
+        layoutFields,
         formData,
+        { debug: debugMode },
       )
 
       if (genError || !data) {
@@ -165,7 +181,7 @@ export function GenerateModal({
     } finally {
       setIsGenerating(false)
     }
-  }, [templateId, formData, templateName, showToast, onClose])
+  }, [templateId, formData, templateName, showToast, onClose, fields, debugMode])
 
   // ---- Backdrop click (blocked while generating) ----
   const handleBackdropClick = useCallback(() => {
@@ -282,6 +298,17 @@ export function GenerateModal({
                   )
                 })
               )}
+
+              {/* Debug mode toggle */}
+              <label className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] cursor-pointer mt-3 px-1">
+                <input
+                  type="checkbox"
+                  checked={debugMode}
+                  onChange={(e) => setDebugMode(e.target.checked)}
+                  className="rounded border-[var(--border)] accent-[var(--primary)]"
+                />
+                Show debug markers (red boxes and crosshairs at each field position)
+              </label>
 
               {/* Ghost layer note */}
               <p className="text-xs text-[var(--foreground-muted)] mt-3 px-1">
