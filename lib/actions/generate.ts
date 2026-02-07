@@ -23,6 +23,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { getTemplate } from '@/lib/actions/templates'
 import { generatePDF, generateMergedBatchPDF } from '@/lib/pdf/generator'
+import { computePageSize } from '@/lib/pdf/dimensions'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import type { LayoutField } from '@/types/database.types'
 
@@ -87,11 +88,14 @@ export async function generateCertificate(
     // The generator's getUserDataValue checks by field.id first, then
     // field.label, then falls back to field.value. The modal sends data
     // keyed by label, so the label match path handles the mapping.
+    const pageSize = computePageSize(template.width_px, template.height_px)
+
     const result = await generatePDF(
       {
         layout: layout.config,
         userData: data,
         coordinateMode: 'percentage',
+        pageSize,
       },
       'base64',
     )
@@ -154,11 +158,14 @@ export async function generateCertificateFromLayout(
     }
 
     // ---- Generate PDF with client-provided layout ----
+    const pageSize = computePageSize(template.width_px, template.height_px)
+
     const result = await generatePDF(
       {
         layout: layoutFields,
         userData: data,
         coordinateMode: 'percentage',
+        pageSize,
         debug: options?.debug
           ? {
               enabled: true,
@@ -249,12 +256,15 @@ export async function generateBatchCertificates(
     }
 
     // ---- Generate merged multi-page PDF (single document, all pages created directly) ----
+    const pageSize = computePageSize(template.width_px, template.height_px)
+
     const result = await generateMergedBatchPDF(
       layout.config,
       dataRows,
       'base64',
       {
         coordinateMode: 'percentage',
+        pageSize,
       },
     )
 

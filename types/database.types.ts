@@ -26,6 +26,8 @@ export interface Template {
   image_url: string; // URL to certificate image (JPG/PNG) in Supabase Storage
   name: string; // User-defined name
   created_at: string; // ISO 8601 timestamp
+  width_px: number | null; // Natural image width in pixels (NULL for legacy templates)
+  height_px: number | null; // Natural image height in pixels (NULL for legacy templates)
 }
 
 /**
@@ -36,6 +38,8 @@ export interface TemplateInsert {
   owner_id: string;
   image_url: string;
   name: string;
+  width_px?: number | null;
+  height_px?: number | null;
 }
 
 /**
@@ -45,6 +49,8 @@ export interface TemplateInsert {
 export interface TemplateUpdate {
   image_url?: string;
   name?: string;
+  width_px?: number | null;
+  height_px?: number | null;
 }
 
 // ============================================================================

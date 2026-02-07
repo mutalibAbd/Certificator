@@ -32,6 +32,7 @@ import { saveLayout } from '@/lib/actions/layouts';
 import { getAllFontVariableClasses } from '@/lib/fonts';
 import type { TemplateWithLayout } from '@/types/database.types';
 import type { DataSource, LayoutField } from '@/types/database.types';
+import { computeAspectRatio, computePageSize } from '@/lib/pdf/dimensions';
 
 const BatchGenerateModal = dynamic(
   () => import('@/components/BatchGenerateModal').then(m => m.BatchGenerateModal),
@@ -88,6 +89,10 @@ export interface EditorWorkspaceProps {
 
 export function EditorWorkspace({ template, imageSignedUrl }: EditorWorkspaceProps) {
   const { showToast } = useToast();
+
+  /* ---- Template dimensions ---- */
+  const aspectRatio = computeAspectRatio(template.width_px, template.height_px);
+  const [, pdfPageHeight] = computePageSize(template.width_px, template.height_px);
 
   /* ---- Field state ---- */
   const initialFields: CanvasField[] = template.layout?.config
@@ -415,12 +420,13 @@ export function EditorWorkspace({ template, imageSignedUrl }: EditorWorkspacePro
           <div className="w-full max-w-3xl">
             <ImagePreview
               imageUrl={imageSignedUrl || template.image_url}
-              aspectRatio={210 / 297}
+              aspectRatio={aspectRatio}
             >
               <CertificateCanvas
                 fields={fields}
                 onFieldsChange={handleFieldsChange}
-                aspectRatio={210 / 297}
+                aspectRatio={aspectRatio}
+                pdfPageHeight={pdfPageHeight}
                 selectedFieldId={selectedFieldId}
                 onFieldSelect={setSelectedFieldId}
                 className="w-full h-full"

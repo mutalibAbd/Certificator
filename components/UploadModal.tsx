@@ -29,6 +29,23 @@ const ACCEPTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png'])
 /*  Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/** Load an image File and resolve with its natural pixel dimensions. */
+function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new window.Image()
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight })
+      URL.revokeObjectURL(url)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Failed to load image for dimension extraction'))
+    }
+    img.src = url
+  })
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -55,6 +72,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -110,6 +128,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       setError(null)
       setIsUploading(false)
       setIsDragOver(false)
+      setImageDimensions(null)
     }
   }, [isOpen])
 
@@ -134,11 +153,17 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
         setError(validationError)
         setFile(null)
         setPreviewUrl(null)
+        setImageDimensions(null)
         return
       }
       setError(null)
       setFile(f)
       setPreviewUrl(URL.createObjectURL(f))
+
+      // Extract image dimensions (non-blocking, fallback to null on failure)
+      getImageDimensions(f)
+        .then(setImageDimensions)
+        .catch(() => setImageDimensions(null))
     },
     [validateFile]
   )
@@ -235,7 +260,9 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       // 4. Create the template record via server action
       const { error: createError } = await createTemplate(
         name.trim(),
-        urlData.publicUrl
+        urlData.publicUrl,
+        imageDimensions?.width ?? null,
+        imageDimensions?.height ?? null,
       )
 
       if (createError) {

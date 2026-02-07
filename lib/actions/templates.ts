@@ -67,6 +67,8 @@ function table(supabase: Awaited<ReturnType<typeof createClient>>, name: string)
 export async function createTemplate(
   name: string,
   imageUrl: string,
+  widthPx?: number | null,
+  heightPx?: number | null,
 ): Promise<{ data: Template | null; error: string | null }> {
   try {
     const supabase = await createClient()
@@ -80,12 +82,16 @@ export async function createTemplate(
       return { data: null, error: authError?.message ?? 'Not authenticated' }
     }
 
+    const payload: Record<string, unknown> = {
+      owner_id: user.id,
+      name,
+      image_url: imageUrl,
+    }
+    if (widthPx != null) payload.width_px = widthPx
+    if (heightPx != null) payload.height_px = heightPx
+
     const { data, error } = await table(supabase, 'templates')
-      .insert({
-        owner_id: user.id,
-        name,
-        image_url: imageUrl,
-      })
+      .insert(payload)
       .select()
       .single()
 

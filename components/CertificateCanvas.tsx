@@ -46,8 +46,8 @@ import type { LayoutField } from '@/types/database.types';
 const NUDGE_INCREMENT = 0.01;
 /** Large nudge increment for Shift+Arrow (5%) */
 const NUDGE_INCREMENT_LARGE = 0.05;
-/** A4 height in PDF points — reference for scaling font sizes */
-const PDF_PAGE_HEIGHT = 841.89;
+/** Default A4 height in PDF points — fallback for scaling font sizes */
+const DEFAULT_PDF_PAGE_HEIGHT = 841.89;
 
 /**
  * Field with position data for the canvas
@@ -84,9 +84,12 @@ export interface CertificateCanvasProps {
   
   /** Optional className for custom styling */
   className?: string;
-  
+
   /** Loading state - show spinner when PDF is generating */
   isLoading?: boolean;
+
+  /** PDF page height in points for font scaling (default: 841.89 for A4) */
+  pdfPageHeight?: number;
 }
 
 /**
@@ -116,6 +119,7 @@ export function CertificateCanvas({
   readOnly = false,
   className = '',
   isLoading = false,
+  pdfPageHeight = DEFAULT_PDF_PAGE_HEIGHT,
 }: CertificateCanvasProps) {
   // Track currently dragging field for overlay
   const [activeField, setActiveField] = useState<CanvasField | null>(null);
@@ -135,7 +139,7 @@ export function CertificateCanvas({
   // Scale factor so canvas font sizes match their PDF proportions.
   // field.size is in PDF points; multiply by this to get canvas pixels.
   const canvasScale = containerSize.height > 0
-    ? containerSize.height / PDF_PAGE_HEIGHT
+    ? containerSize.height / pdfPageHeight
     : 1;
 
   // Snap guides for alignment feedback
