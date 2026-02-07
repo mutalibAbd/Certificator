@@ -297,14 +297,15 @@ function convertCoordinates(
   if (mode === 'percentage') {
     // Percentage mode: x and y are 0-1 values
     const points = percentageToPoints({ xPct: x, yPct: y }, pageWidth, pageHeight);
-    // Adjust for text baseline.
-    // pdf-lib drawText positions text at the baseline. The canvas positions
-    // the field's top edge at y%. A typical font ascender is ~80% of the
-    // em-square, so we shift UP by fontSize to position the baseline correctly.
-    // In PDF coordinates (Y increases upward), we ADD to move UP.
+    // Baseline adjustment: the canvas positions the TOP edge of the text
+    // element at y%, but pdf-lib drawText positions at the BASELINE.
+    // In PDF coordinates (Y increases upward), subtracting moves DOWN.
+    // The ascent of most fonts is ~75% of the em-square, so we shift
+    // the baseline down by that amount to align the visual top of text
+    // with the percentage position.
     return {
       x: points.xPoints,
-      y: points.yPoints,  // No baseline adjustment - let the text position naturally
+      y: points.yPoints - fontSize * 0.75,
     };
   }
 
@@ -756,7 +757,7 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 }
 
 // ============================================================================
-// BATCH GENERATION (Memory Efficient)
+// MERGED BATCH GENERATION (Single Document, Multiple Pages)
 // ============================================================================
 
 /**
@@ -772,111 +773,9 @@ export interface BatchGenerateOptions {
 }
 
 /**
- * Generate multiple certificates as blank pages with text fields (batch mode)
- * This is more memory-efficient than calling generatePDF multiple times
- * because it avoids redundant setup overhead.
- *
- * @param layout - Layout configuration
- * @param userDataList - Array of user data for each certificate
- * @param customFonts - Optional custom fonts
- * @param format - Output format
- * @param options - Additional options (coordinate mode, debug, page size)
- * @returns Array of generated PDF results
- *
- * @example
- * ```typescript
- * const results = await generateBatchPDF(
- *   layout,
- *   [
- *     { name: 'Alice', course: 'TypeScript' },
- *     { name: 'Bob', course: 'TypeScript' },
- *   ],
- *   undefined,
- *   'base64',
- *   { coordinateMode: 'percentage', debug: { enabled: true } }
- * );
- * ```
- */
-export async function generateBatchPDF(
-  layout: LayoutField[],
-  userDataList: UserData[],
-  customFonts?: Record<string, string>,
-  format: OutputFormat = 'base64',
-  options?: BatchGenerateOptions
-): Promise<GeneratePDFResult[]> {
-  const [pageWidth, pageHeight] = options?.pageSize || [A4_WIDTH, A4_HEIGHT];
-  const coordinateMode = options?.coordinateMode || 'pixels';
-
-  // Generate PDFs sequentially to avoid memory spikes
-  const results: GeneratePDFResult[] = [];
-
-  for (const userData of userDataList) {
-    // Create a fresh blank PDF for each certificate
-    const pdfDoc = await PDFDocument.create();
-    pdfDoc.registerFontkit(fontkit);
-    const page = pdfDoc.addPage([pageWidth, pageHeight]);
-
-    // Load standard fonts
-    const uniqueFonts = new Set(layout.map(f => f.font));
-    const fontMap = new Map<string, PDFFont>();
-
-    for (const fontName of uniqueFonts) {
-      const font = await loadFont(pdfDoc, fontName);
-      fontMap.set(fontName, font);
-    }
-
-    // Draw fields
-    for (const field of layout) {
-      const text = getUserDataValue(field, userData);
-      if (!text) continue;
-
-      if (field.type === 'text' || field.type === 'date') {
-        await drawTextField(
-          page,
-          field,
-          text,
-          fontMap,
-          pdfDoc,
-          pageWidth,
-          pageHeight,
-          coordinateMode,
-          options?.debug
-        );
-      }
-    }
-
-    // Serialize
-    const pdfBytes = await pdfDoc.save();
-
-    let data: string | Buffer | Uint8Array;
-    switch (format) {
-      case 'base64':
-        data = uint8ArrayToBase64(pdfBytes);
-        break;
-      case 'buffer':
-        data = Buffer.from(pdfBytes);
-        break;
-      default:
-        data = pdfBytes;
-    }
-
-    results.push({
-      data,
-      format,
-      pageCount: 1,
-    });
-  }
-
-  return results;
-}
-
-// ============================================================================
-// MERGED BATCH GENERATION (Single Document, Multiple Pages)
-// ============================================================================
-
-/**
  * Generate multiple certificates as pages in a single PDF document.
- * More efficient than generateBatchPDF because:
+ *
+ * Efficient batch strategy:
  * - Creates a single PDFDocument with PDFDocument.create()
  * - Loads fonts once and reuses across all pages
  * - No post-merge step required
@@ -976,14 +875,9 @@ export async function generateMergedBatchPDF(
 //
 // Main Functions:
 // - generatePDF(input, format): Generate single certificate on blank page
-// - generateBatchPDF(layout, userDataList, ...): Generate multiple certificates (individual)
 // - generateMergedBatchPDF(layout, userDataList, ...): Generate merged multi-page PDF
 // - percentageToPoints(coord, width, height): Convert % to PDF points
 // - pointsToPercentage(points, width, height): Convert PDF points to %
-//
-// Constants:
-// - A4_WIDTH: 595.28 points (210mm)
-// - A4_HEIGHT: 841.89 points (297mm)
 //
 // Types:
 // - UserData: Record<string, string> - Field values mapping

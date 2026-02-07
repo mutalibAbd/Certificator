@@ -23,6 +23,18 @@ const nextConfig: NextConfig = {
   // are require()-d at runtime instead.  Reduces cold-start parse time.
   serverExternalPackages: ['pdf-lib', '@pdf-lib/fontkit'],
 
+  // Prevent pdf.js from importing node canvas (it's browser-only)
+  turbopack: {
+    resolveAlias: {
+      canvas: { browser: '' },
+    },
+  },
+
+  webpack: (config) => {
+    config.resolve.alias.canvas = false;
+    return config;
+  },
+
   /**
    * Server Actions Configuration
    * 
@@ -49,22 +61,6 @@ const nextConfig: NextConfig = {
       // Add your production domain when deploying
       // allowedOrigins: ['your-domain.vercel.app'],
     },
-  },
-
-  /**
-   * Image Optimization Configuration
-   * 
-   * remotePatterns: Allow images from Supabase Storage
-   * This is required for next/image to optimize images from your Supabase bucket
-   */
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.supabase.co',
-        pathname: '/storage/v1/object/**',
-      },
-    ],
   },
 
   /**

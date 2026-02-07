@@ -1,4 +1,4 @@
-import { getTemplates, getSignedImageUrls } from '@/lib/actions/templates'
+import { getTemplates, getSignedPdfUrls } from '@/lib/actions/templates'
 import DashboardContent from '@/components/DashboardContent'
 
 export const metadata = {
@@ -8,13 +8,13 @@ export const metadata = {
 export default async function DashboardPage() {
   const { data: templates, error } = await getTemplates()
 
-  // Batch-sign all image URLs in one Supabase call (1 client, 1 request)
-  const imageUrls = (templates || []).map((t) => t.image_url)
-  const { data: signedUrlMap } = await getSignedImageUrls(imageUrls)
+  // Batch-sign all PDF URLs in one Supabase call (1 client, 1 request)
+  const pdfUrls = (templates || []).map((t) => t.pdf_url)
+  const { data: signedUrlMap } = await getSignedPdfUrls(pdfUrls)
 
   const templatesWithUrls = (templates || []).map((t) => ({
     ...t,
-    signedImageUrl: signedUrlMap.get(t.image_url) || t.image_url,
+    signedPdfUrl: signedUrlMap.get(t.pdf_url) || t.pdf_url,
   }))
 
   return (

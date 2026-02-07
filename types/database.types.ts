@@ -18,16 +18,16 @@ export type SystemHealthStatus = 'healthy' | 'degraded' | 'offline';
 
 /**
  * Template represents a certificate template
- * Images are stored in Supabase Storage, not in the database
+ * PDF files are stored in Supabase Storage, not in the database
  */
 export interface Template {
   id: string; // UUID
   owner_id: string; // UUID - Foreign key to auth.users
-  image_url: string; // URL to certificate image (JPG/PNG) in Supabase Storage
+  pdf_url: string; // URL to certificate PDF template in Supabase Storage
   name: string; // User-defined name
   created_at: string; // ISO 8601 timestamp
-  width_px: number | null; // Natural image width in pixels (NULL for legacy templates)
-  height_px: number | null; // Natural image height in pixels (NULL for legacy templates)
+  width_pt: number | null; // PDF page width in points (1pt = 1/72 inch)
+  height_pt: number | null; // PDF page height in points (1pt = 1/72 inch)
 }
 
 /**
@@ -36,10 +36,10 @@ export interface Template {
  */
 export interface TemplateInsert {
   owner_id: string;
-  image_url: string;
+  pdf_url: string;
   name: string;
-  width_px?: number | null;
-  height_px?: number | null;
+  width_pt?: number | null;
+  height_pt?: number | null;
 }
 
 /**
@@ -47,10 +47,10 @@ export interface TemplateInsert {
  * All fields are optional except what's being updated
  */
 export interface TemplateUpdate {
-  image_url?: string;
+  pdf_url?: string;
   name?: string;
-  width_px?: number | null;
-  height_px?: number | null;
+  width_pt?: number | null;
+  height_pt?: number | null;
 }
 
 // ============================================================================

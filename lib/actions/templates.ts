@@ -18,9 +18,9 @@ import type { Template, TemplateWithLayout } from '@/types/database.types'
  *
  * We need the portion *after* the bucket name ("templates/"), i.e. "<userId>/<file>".
  */
-function extractStoragePath(imageUrl: string): string | null {
+function extractStoragePath(pdfUrl: string): string | null {
   try {
-    const url = new URL(imageUrl)
+    const url = new URL(pdfUrl)
     const segments = url.pathname.split('/storage/v1/object/')
     if (segments.length < 2) return null
 
@@ -59,16 +59,16 @@ function table(supabase: Awaited<ReturnType<typeof createClient>>, name: string)
 // ---------------------------------------------------------------------------
 
 /**
- * Create a template record after the image has been uploaded to storage.
+ * Create a template record after the PDF has been uploaded to storage.
  *
  * The client uploads the file directly to Supabase Storage (to avoid the
  * Vercel 4.5 MB body limit), then calls this action with the resulting URL.
  */
 export async function createTemplate(
   name: string,
-  imageUrl: string,
-  widthPx?: number | null,
-  heightPx?: number | null,
+  pdfUrl: string,
+  widthPt?: number | null,
+  heightPt?: number | null,
 ): Promise<{ data: Template | null; error: string | null }> {
   try {
     const supabase = await createClient()
@@ -85,10 +85,10 @@ export async function createTemplate(
     const payload: Record<string, unknown> = {
       owner_id: user.id,
       name,
-      image_url: imageUrl,
+      pdf_url: pdfUrl,
     }
-    if (widthPx != null) payload.width_px = widthPx
-    if (heightPx != null) payload.height_px = heightPx
+    if (widthPt != null) payload.width_pt = widthPt
+    if (heightPt != null) payload.height_pt = heightPt
 
     const { data, error } = await table(supabase, 'templates')
       .insert(payload)
@@ -185,7 +185,7 @@ export async function getTemplate(
 
 /**
  * Delete a template, its associated layout (via CASCADE), and the
- * corresponding image file in Supabase Storage.
+ * corresponding PDF file in Supabase Storage.
  */
 export async function deleteTemplate(
   id: string,
@@ -215,7 +215,7 @@ export async function deleteTemplate(
     }
 
     // Best-effort storage cleanup
-    const storagePath = extractStoragePath((template as Template).image_url)
+    const storagePath = extractStoragePath((template as Template).pdf_url)
     if (storagePath) {
       await supabase.storage.from('templates').remove([storagePath])
     }
@@ -230,16 +230,16 @@ export async function deleteTemplate(
 }
 
 /**
- * Generate a signed URL for a template image stored in a private bucket.
+ * Generate a signed URL for a template PDF stored in a private bucket.
  * Signed URLs expire after 1 hour — sufficient for an editing session.
  */
-export async function getSignedImageUrl(
-  imageUrl: string,
+export async function getSignedPdfUrl(
+  pdfUrl: string,
 ): Promise<{ data: string | null; error: string | null }> {
   try {
-    const storagePath = extractStoragePath(imageUrl)
+    const storagePath = extractStoragePath(pdfUrl)
     if (!storagePath) {
-      return { data: null, error: 'Invalid image URL' }
+      return { data: null, error: 'Invalid PDF URL' }
     }
 
     const supabase = await createClient()
@@ -260,19 +260,19 @@ export async function getSignedImageUrl(
 }
 
 /**
- * Generate signed URLs for multiple images in a single Supabase client call.
- * Much faster than calling getSignedImageUrl() N times (avoids N client
+ * Generate signed URLs for multiple PDFs in a single Supabase client call.
+ * Much faster than calling getSignedPdfUrl() N times (avoids N client
  * instantiations and uses createSignedUrls batch API).
  */
-export async function getSignedImageUrls(
-  imageUrls: string[],
+export async function getSignedPdfUrls(
+  pdfUrls: string[],
 ): Promise<{ data: Map<string, string>; error: string | null }> {
   const result = new Map<string, string>()
-  if (imageUrls.length === 0) return { data: result, error: null }
+  if (pdfUrls.length === 0) return { data: result, error: null }
 
   try {
     const paths: { original: string; storagePath: string }[] = []
-    for (const url of imageUrls) {
+    for (const url of pdfUrls) {
       const storagePath = extractStoragePath(url)
       if (storagePath) {
         paths.push({ original: url, storagePath })

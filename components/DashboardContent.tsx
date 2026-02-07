@@ -10,7 +10,7 @@ const UploadModal = dynamic(
   { ssr: false },
 )
 
-type TemplateWithSignedUrl = Template & { signedImageUrl: string }
+type TemplateWithSignedUrl = Template & { signedPdfUrl: string }
 
 interface DashboardContentProps {
   templates: TemplateWithSignedUrl[]
@@ -46,7 +46,7 @@ export default function DashboardContent({ templates }: DashboardContentProps) {
           </svg>
 
           <p className="text-[var(--foreground-muted)] mb-6 max-w-sm">
-            No templates yet — upload a photo of your certificate to get started
+            No templates yet — upload a PDF certificate to get started
           </p>
 
           <button
@@ -103,7 +103,7 @@ export default function DashboardContent({ templates }: DashboardContentProps) {
           </button>
 
           {templates.map((template) => (
-            <TemplateCard key={template.id} template={template} signedImageUrl={template.signedImageUrl} />
+            <TemplateCard key={template.id} template={template} signedPdfUrl={template.signedPdfUrl} />
           ))}
         </div>
       )}

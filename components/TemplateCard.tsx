@@ -3,14 +3,13 @@
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { deleteTemplate } from '@/lib/actions/templates'
 import { useToast } from '@/hooks/useToast'
 import type { Template } from '@/types/database.types'
 
 interface TemplateCardProps {
   template: Template
-  signedImageUrl?: string
+  signedPdfUrl?: string
 }
 
 /**
@@ -29,7 +28,7 @@ function formatDate(dateStr: string): string {
   }
 }
 
-export default function TemplateCard({ template, signedImageUrl }: TemplateCardProps) {
+export default function TemplateCard({ template, signedPdfUrl: _signedPdfUrl }: TemplateCardProps) {
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
   const { showToast } = useToast()
@@ -55,20 +54,12 @@ export default function TemplateCard({ template, signedImageUrl }: TemplateCardP
     <div className="group relative flex flex-col rounded-lg border border-slate-200 bg-white transition-shadow hover:shadow-md overflow-hidden">
       {/* Thumbnail */}
       <div className="relative h-32 bg-slate-100 overflow-hidden">
-        {signedImageUrl ? (
-          <Image
-            src={signedImageUrl}
-            alt={`${template.name} preview`}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover"
-            draggable={false}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-slate-400">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-          </div>
-        )}
+        <div className="flex items-center justify-center h-full text-slate-400">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        </div>
       </div>
 
       {/* Template info */}

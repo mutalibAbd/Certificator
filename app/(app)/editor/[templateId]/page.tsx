@@ -11,7 +11,7 @@
  */
 
 import { redirect } from 'next/navigation';
-import { getTemplate, getSignedImageUrl } from '@/lib/actions/templates';
+import { getTemplate, getSignedPdfUrl } from '@/lib/actions/templates';
 import { EditorWorkspace } from '@/components/EditorWorkspace';
 
 interface EditorPageProps {
@@ -27,8 +27,8 @@ export default async function EditorPage({ params }: EditorPageProps) {
     redirect('/dashboard');
   }
 
-  // Create a signed URL so the browser can access the private-bucket image
-  const { data: signedUrl } = await getSignedImageUrl(template.image_url);
+  // Create a signed URL so the browser can access the private-bucket PDF
+  const { data: signedUrl } = await getSignedPdfUrl(template.pdf_url);
 
-  return <EditorWorkspace template={template} imageSignedUrl={signedUrl ?? template.image_url} />;
+  return <EditorWorkspace template={template} pdfSignedUrl={signedUrl ?? template.pdf_url} />;
 }
