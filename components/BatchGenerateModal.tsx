@@ -128,11 +128,13 @@ export function BatchGenerateModal({
 
   /* ---- Pre-populate with preloaded data when modal opens ---- */
   useEffect(() => {
-    if (isOpen && preloadedData && !csv) {
-      setCsv(preloadedData);
-      setFileName('(imported from editor)');
-      autoMapColumns(preloadedData.headers);
-    }
+    if (!isOpen || !preloadedData || csv) return;
+
+    // Batch updates to avoid cascading renders
+    const headers = preloadedData.headers;
+    setCsv(preloadedData);
+    setFileName('(imported from editor)');
+    autoMapColumns(headers);
   }, [isOpen, preloadedData, csv, autoMapColumns]);
 
   /* ---- File upload handler ---- */

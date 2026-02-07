@@ -82,7 +82,9 @@ export function useKeyboardShortcuts(
 ): void {
     // Use ref to avoid re-registering listeners when shortcuts object changes
     const shortcutsRef = useRef(shortcuts);
-    shortcutsRef.current = shortcuts;
+    useEffect(() => {
+        shortcutsRef.current = shortcuts;
+    }, [shortcuts]);
 
     const handleKeyDown = useCallback((event: KeyboardEvent) => {
         // Ignore events from input elements unless explicitly handled
