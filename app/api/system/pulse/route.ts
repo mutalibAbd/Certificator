@@ -100,7 +100,7 @@ export async function POST(
     // =========================================================================
     // STEP 2: Execute Keep-Alive Write Operation
     // =========================================================================
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
 
     // Use a fixed UUID for the health record (created in migration)
     const healthRecordId = '00000000-0000-0000-0000-000000000001';
@@ -170,7 +170,7 @@ export async function GET(): Promise<NextResponse<PulseResponse | ErrorResponse>
   const timestamp = new Date().toISOString();
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClient();
     const healthRecordId = '00000000-0000-0000-0000-000000000001';
 
     const { data, error } = await (supabase
