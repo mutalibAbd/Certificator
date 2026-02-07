@@ -296,16 +296,12 @@ function convertCoordinates(
 ): { x: number; y: number } {
   if (mode === 'percentage') {
     // Percentage mode: x and y are 0-1 values
+    // percentageToPoints already handles Y-axis inversion correctly
+    // (converts from top-left browser coordinates to bottom-left PDF coordinates)
     const points = percentageToPoints({ xPct: x, yPct: y }, pageWidth, pageHeight);
-    // Baseline adjustment: the canvas positions the TOP edge of the text
-    // element at y%, but pdf-lib drawText positions at the BASELINE.
-    // In PDF coordinates (Y increases upward), subtracting moves DOWN.
-    // The ascent of most fonts is ~75% of the em-square, so we shift
-    // the baseline down by that amount to align the visual top of text
-    // with the percentage position.
     return {
       x: points.xPoints,
-      y: points.yPoints - fontSize * 0.75,
+      y: points.yPoints,
     };
   }
 
