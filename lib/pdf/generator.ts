@@ -324,7 +324,7 @@ function convertCoordinates(
  * @param fieldWidth - Optional field width for right alignment
  * @returns Adjusted X position
  */
-function calculateAlignedX(
+function _calculateAlignedX(
   x: number,
   textWidth: number,
   align: 'left' | 'center' | 'right' = 'left',

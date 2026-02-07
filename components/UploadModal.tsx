@@ -13,6 +13,7 @@ import {
   type ChangeEvent,
 } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { createClient } from '@/utils/supabase/client'
 import { createTemplate } from '@/lib/actions/templates'
 import { useToast } from '@/hooks/useToast'
@@ -389,10 +390,13 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                 /* File selected – image thumbnail preview */
                 <div className="flex items-center gap-3">
                   {previewUrl && (
-                    <img
+                    <Image
                       src={previewUrl}
                       alt="Selected certificate preview"
+                      width={64}
+                      height={64}
                       className="h-16 w-16 rounded-md object-cover border border-slate-200"
+                      unoptimized
                     />
                   )}
                   <div className="text-left">
